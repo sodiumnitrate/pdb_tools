@@ -51,3 +51,10 @@ class TestEntry:
         
         residues = entry.find_closest_from_each_residue(ref_atom)
         assert len(residues) == 2
+
+    def test_find_contact_pairs(self):
+        entry = Entry('6q6b')
+        results = entry.find_contact_pairs()
+
+        assert len(results) == 7246
+        assert isinstance(results[0], tuple)

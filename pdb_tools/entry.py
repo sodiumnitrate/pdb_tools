@@ -97,3 +97,30 @@ class Entry:
                     residues[name] = (atom, dist)
 
         return residues
+
+    def find_contact_pairs(self, max_dist=4, inter_chain=False, model_idx=0):
+        """Function to find all atom pairs that are in contact."""
+        cs = gemmi.ContactSearch(max_dist)
+        if inter_chain:
+            cs.ignore = gemmi.ContactSearch.Ignore.SameChain
+        else:
+            cs.ignore = gemmi.ContactSearch.Ignore.AdjacentResidues
+
+        cs.min_occupancy = 0.01
+
+        model = self.structure[model_idx]
+        model.remove_waters()
+        ns = gemmi.NeighborSearch(model,
+                                  self.structure.cell,
+                                  5).populate(include_h=False)
+
+        results = cs.find_contacts(ns)
+
+        pairs = []
+        for res in results:
+            p1 = res.partner1
+            p2 = res.partner2
+            dist = res.dist
+            pairs.append((p1, p2, dist))
+
+        return pairs
