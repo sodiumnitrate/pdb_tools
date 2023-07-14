@@ -1,8 +1,6 @@
 """
 Unit tests for the Entry class.
 """
-
-
 from pdb_tools.entry import Entry
 
 
@@ -33,3 +31,23 @@ class TestEntry:
 
         assert n_new > n_old
 
+    def test_select_atoms(self):
+        entry = Entry('6q6b')
+        atoms = entry.select_atoms('(CU1)')
+
+        assert len(atoms) == 59
+        assert atoms[0].name == 'CU'
+
+    def test_find_neighboring_atoms(self):
+        entry = Entry('6q6b')
+        ref_atom = entry.structure[0][0][0][0]
+        neighboring_atoms = entry.find_neighboring_atoms(ref_atom)
+
+        assert len(neighboring_atoms) == 5
+
+    def test_closest_from_each_residue(self):
+        entry = Entry('6q6b')
+        ref_atom = entry.structure[0][0][0][0]
+        
+        residues = entry.find_closest_from_each_residue(ref_atom)
+        assert len(residues) == 2
