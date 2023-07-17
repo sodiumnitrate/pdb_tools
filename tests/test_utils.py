@@ -56,3 +56,8 @@ class TestUtils:
         res_string = vmd_selection_from_atom_list(atom_list, structure=entry.structure)
 
         assert isinstance(res_string, str)
+
+    def test_are_points_roughly_planar(self):
+        points = [[0,0,0], [-5,0,0.1], [0,5,0], [5,0,-0.1], [-5, -5, 0.5]]
+
+        assert are_points_roughly_planar(points)

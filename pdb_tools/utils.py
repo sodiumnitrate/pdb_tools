@@ -4,6 +4,7 @@ This file contains a bunch of utilities for the module.
 from pypdb.clients.pdb import pdb_client
 import numpy as np
 import gemmi
+from skspatial.objects import Plane, Points
 
 def get_pdbx(pdb_id):
     return pdb_client.get_pdb_file(pdb_id, pdb_client.PDBFileType.CIF, True)
@@ -107,3 +108,23 @@ def cra_from_atom_position(pos, structure, model_idx=0, tol=0.0001):
         return None
 
     return marks[0].to_cra(structure[model_idx])
+
+def are_points_roughly_planar(points, max_err=0.1):
+    """
+    Given a set of points, fit a plane to them, and compute distances
+    to the plane to figure out if they are roughly planar.
+
+    https://stackoverflow.com/a/72384583
+    """
+
+    #TODO: check type and size of points
+    points = Points(points)
+    best_fit_plane = Plane.best_fit(points)
+
+    distances = [best_fit_plane.distance_point(point) for point in points]
+    error = np.sqrt(np.dot(distances, distances) / len(distances))
+
+    if error > max_err:
+        return False
+
+    return True

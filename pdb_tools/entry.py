@@ -14,7 +14,7 @@ class Entry:
         self.fetch_structure()
 
     def write_cif(self, file_name):
-        """Function to write the .cif file corresponding to the .pdb ID to file."""
+        """Function to write the .cif file corresponding to the pdb ID to file."""
         self.structure.make_mmcif_document().write_file(file_name)
 
     def fetch_structure(self):
@@ -60,6 +60,10 @@ class Entry:
         Function that, given a reference atom, find neighboring atoms in a
         maximum distance of max_dist.
         """
+        if isinstance(ref_atom, gemmi.CRA):
+            ref_atom = ref_atom.atom
+        elif not isinstance(ref_atom, gemmi.Atom):
+            raise TypeError
         ns = gemmi.NeighborSearch(self.structure[model_idx],
                                   self.structure.cell,
                                   5).populate(include_h=False)
@@ -78,6 +82,10 @@ class Entry:
         Given a reference atom, find neighboring atoms such that the closest
         atom from each neighboring residue is selected.
         """
+        if isinstance(ref_atom, gemmi.CRA):
+            ref_atom = ref_atom.atom
+        elif not isinstance(ref_atom, gemmi.Atom):
+            raise TypeError
         close_atoms = self.find_neighboring_atoms(ref_atom,
                                                   max_dist=max_dist,
                                                   model_idx=model_idx)
@@ -87,7 +95,7 @@ class Entry:
             resname = atom.residue.name
             seqid = atom.residue.seqid.num
             name = f"{chain}_{seqid}_{resname}"
-            dist = self.structure.cell.find_nearest_pbc_image(ref_atom.pos, atom.atom.pos, 0).dist()
+            dist = self.structure.cell.find_nearest_image(ref_atom.pos, atom.atom.pos).dist()
 
             if name not in residues:
                 residues[name] = (atom, dist)
@@ -109,6 +117,8 @@ class Entry:
         cs.min_occupancy = 0.01
 
         model = self.structure[model_idx]
+
+        # TODO: be more careful with waters
         model.remove_waters()
         ns = gemmi.NeighborSearch(model,
                                   self.structure.cell,
@@ -124,3 +134,31 @@ class Entry:
             pairs.append((p1, p2, dist))
 
         return pairs
+
+    def find_displacement_vector(self, pos1, pos2):
+        """
+        Given two positions, return the displacement vector corresponding to the
+        smallest distance between the two points under PBC and symmetry operations.
+        """
+
+        # TODO: is there a better way to do this??
+        i = 0
+        while True:
+            try:
+                dist = self.structure.cell.find_nearest_pbc_image(pos1, pos2, i)
+            except IndexError:
+                break
+            if i == 0:
+                min_dist = dist.dist()
+                min_idx = i
+            else:
+                if dist.dist() < min_dist:
+                    min_dist = dist.dist()
+                    min_idx = i
+            i += 1
+
+        pos2_sym = self.structure.cell.find_nearest_pbc_position(pos1, pos2, min_idx)
+
+        dist_vec = pos1 - pos2_sym
+
+        return [dist_vec[0], dist_vec[1], dist_vec[2]]
