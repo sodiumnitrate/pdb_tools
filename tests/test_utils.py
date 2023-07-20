@@ -4,6 +4,8 @@ Unit tests for utils.
 from pdb_tools.utils import *
 from pdb_tools.entry import Entry
 
+import pdb
+
 class TestUtils:
     def test_get_pdbx(self):
         ans = get_pdbx("6q6b")
@@ -61,3 +63,13 @@ class TestUtils:
         points = [[0,0,0], [-5,0,0.1], [0,5,0], [5,0,-0.1], [-5, -5, 0.5]]
 
         assert are_points_roughly_planar(points)
+
+    def test_is_position(self):
+        a = [0, 1, 20]
+        assert is_position(a)
+
+        a = np.array([0, 1, 10])
+        assert is_position(a)
+
+        a = gemmi.Position(0, 10, 20)
+        assert is_position(a)

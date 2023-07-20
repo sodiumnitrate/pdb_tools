@@ -3,8 +3,9 @@ Definition of the entry class.
 
 (entry = PDB entry in PDB lingo)
 """
+import numpy as np
 import gemmi
-from pdb_tools.utils import get_pdbx
+from pdb_tools.utils import get_pdbx, is_position
 
 class Entry:
     def __init__(self, pdb_id):
@@ -135,6 +136,16 @@ class Entry:
 
         return pairs
 
+    def find_nearest_image_distance(self, pos1, pos2):
+        """
+        Given two positions, find the nearest image distance between them.
+        """
+        if not is_position(pos1) or not is_position(pos2):
+            raise TypeError
+
+        return self.structure.cell.find_nearest_image(gemmi.Position(pos1[0], pos1[1], pos1[2]),
+                                                      gemmi.Position(pos2[0], pos2[1], pos2[2])).dist()
+
     def find_displacement_vector(self, pos1, pos2):
         """
         Given two positions, return the displacement vector corresponding to the
@@ -159,6 +170,69 @@ class Entry:
 
         pos2_sym = self.structure.cell.find_nearest_pbc_position(pos1, pos2, min_idx)
 
-        dist_vec = pos1 - pos2_sym
+        dist_vec = pos2_sym - pos1
 
         return [dist_vec[0], dist_vec[1], dist_vec[2]]
+
+    def unfragmented_positions(self, atom_list):
+        """
+        Given a list of atom, return a list of positions such that the nearest pbc
+        image positions are returned.
+
+        Uses the first atom in the list as a reference and brings all other atoms
+        near it.
+        """
+        if not isinstance(atom_list, list):
+            print(f"ERROR: an atom_list of {type(atom_list)} is not supported.")
+            raise TypeError
+        if all([isinstance(a, gemmi.CRA) for a in  atom_list]):
+            positions = [a.atom.pos for a in atom_list]
+        elif all([isinstance(a, gemmi.Atom) for a in atom_list]):
+            positions = [a.pos for a in atom_list]
+        elif all([isinstance(a, gemmi.Atom) or isinstance(a, gemmi.CRA) for a in atom_list]):
+            positions = []
+            for a in atom_list:
+                if isinstance(a, gemmi.Atom):
+                    positions.append(a.pos)
+                elif isinstance(a, gemmi.CRA):
+                    positions.append(a.atom.pos)
+        else:
+            raise TypeError
+
+        ref_pos = positions[0]
+        new_positions = [np.array([ref_pos[0], ref_pos[1], ref_pos[2]])]
+        for pos in positions[1:]:
+            dist_vec = self.find_displacement_vector(ref_pos, pos)
+            new_pos = np.array(dist_vec) + np.array([ref_pos[0], ref_pos[1], ref_pos[2]])
+            new_positions.append(np.copy(new_pos))
+
+        return np.array(new_positions)
+
+    def find_center_of_mass(self, atom_list=None, selection_string=None, model_idx=0):
+        """
+        Find center of mass of a given atom list or selection of atoms.
+
+        If atom_list is provided, selection_string and model_idx are rendered irrelevant.
+        """
+        if atom_list is None and selection_string is None:
+            print("ERROR: atom_list and selection can't be both None.")
+            raise ValueError
+
+        if atom_list is None:
+            atom_list = self.select_atoms(selection_string, model_idx=model_idx)
+
+        positions = self.unfragmented_positions(atom_list)
+        com = np.array([0., 0., 0.])
+        tot_w = 0
+        for i, atom in enumerate(atom_list):
+            if isinstance(atom, gemmi.CRA):
+                w = atom.atom.element.weight
+            elif isinstance(atom, gemmi.Atom):
+                w = atom.element.weight
+            else:
+                raise TypeError
+            tot_w += w
+            com += positions[i] * w
+
+        com /= tot_w
+        return com

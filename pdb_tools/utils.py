@@ -128,3 +128,19 @@ def are_points_roughly_planar(points, max_err=0.1):
         return False
 
     return True
+
+def is_position(vec):
+    """
+    Given a vector, find out if it's consistent with a position vector
+    in 3d.
+    """
+
+    if isinstance(vec, gemmi.Position):
+        return True
+
+    if isinstance(vec, list) or isinstance(vec, np.ndarray):
+        if all([isinstance(a, (int, float, np.int_, np.float_)) for a in vec]):
+            if len(vec) == 3:
+                return True
+
+    return False

@@ -2,8 +2,12 @@
 Unit tests for the Entry class.
 """
 from math import sqrt
+import numpy as np
 from pdb_tools.entry import Entry
 from pdb_tools.utils import cra_from_atom
+import gemmi
+
+import pdb
 
 class TestEntry:
     def test_init(self):
@@ -106,3 +110,34 @@ class TestEntry:
         dist_vec = entry.find_displacement_vector(pos1, pos2)
 
         assert abs(dist - sqrt(dist_vec[0]**2 + dist_vec[1] **2 + dist_vec[2] ** 2)) < 1e-10
+
+    def test_unfragmented_positions(self):
+        entry = Entry('2c9p')
+
+        coppers = entry.select_atoms('(CU)')
+        copper = coppers[1]
+
+        neigs = entry.find_neighboring_atoms(copper)
+        positions = entry.unfragmented_positions([copper] + neigs)
+
+        for i in range(len(positions)):
+            pos_i = positions[i]
+            for j in range(i+1, len(positions)):
+                pos_j = positions[j]
+                dist_1 = np.linalg.norm(pos_i - pos_j)
+
+                dist_2 = entry.find_nearest_image_distance(pos_i, pos_j)
+
+                assert abs(dist_1 - dist_2) < 1e-10
+
+    def test_find_com(self):
+        entry = Entry('2c9p')
+
+        coppers = entry.select_atoms('(CU)')
+        copper = coppers[1]
+
+        neigs = entry.find_neighboring_atoms(copper)
+
+        com = entry.find_center_of_mass(neigs)
+
+        assert np.linalg.norm(np.array([copper.pos[0], copper.pos[1], copper.pos[2]]) - com) < 1
