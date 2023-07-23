@@ -144,3 +144,26 @@ def is_position(vec):
                 return True
 
     return False
+
+def is_two_d_array_of_floats(array):
+    """
+    Given array, check if it's a 2d array of floats.
+    """
+
+    if isinstance(array, list):
+        if not all([isinstance(a, (list, np.ndarray)) for a in array]):
+            return False
+        for a in array:
+            if not all([isinstance(el, (float, np.float_)) for el in a]):
+                return False
+    elif isinstance(array, np.ndarray):
+        shape = array.shape
+        if len(shape) != 2:
+            return False
+            
+        if not isinstance(array[0][0], (np.float_)):
+            return False
+    else:
+        return False
+
+    return True

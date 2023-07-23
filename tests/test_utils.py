@@ -73,3 +73,28 @@ class TestUtils:
 
         a = gemmi.Position(0, 10, 20)
         assert is_position(a)
+
+    def test_is_two_d_array_of_floats(self):
+        array = [[0.1,0.5,1.0], [0.5, 1.0, 1.5]]
+        assert is_two_d_array_of_floats(array)
+
+        array = np.array(array)
+        assert is_two_d_array_of_floats(array)
+
+        array = [[[5.1,2.2],[0.1,0.2]],[[0.1,2.0],[11., 5.]]]
+        assert not is_two_d_array_of_floats(array)
+
+        array = np.array(array)
+        assert not is_two_d_array_of_floats(array)
+
+        array = np.array([2,3.])
+        assert not is_two_d_array_of_floats(array)
+
+        array = [2.1, 0.3]
+        assert not is_two_d_array_of_floats(array)
+
+        array = [['foo','fofo'],['bar','baba']]
+        assert not is_two_d_array_of_floats(array)
+
+        array = [[2,0.2],[0,0]]
+        assert not is_two_d_array_of_floats(array)
