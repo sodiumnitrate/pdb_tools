@@ -5,9 +5,12 @@ Simple implementation of ICP, based on https://github.com/ClayFlannigan/icp
 overkill, but I wanted to learn about it.)
 """
 import numpy as np
+from itertools import permutations
 from sklearn.neighbors import NearestNeighbors
 
 from pdb_tools.utils import is_two_d_array_of_floats
+
+import pdb
 
 def nearest_neighbor(src, dst):
     """
@@ -20,6 +23,109 @@ def nearest_neighbor(src, dst):
     distances, indices = neigh.kneighbors(src, return_distance=True)
     return distances.ravel(), indices.ravel()
 
+def nearest_neighbor_best_match(pts1, pts2):
+    """
+    Given two sets of points, find matching that minimizes distance.
+    """
+    if pts1.shape != pts2.shape:
+        print("ERROR: input point sets must have the same dimensions.")
+        raise ValueError
+
+    dist_dict = {}
+    for i in range(len(pts1)):
+        pos_i = pts1[i,:]
+        for j in range(i, len(pts1)):
+            pos_j = pts2[j,:]
+            d = np.linalg.norm(pos_i - pos_j)
+            dist_dict[(i,j)] = d
+
+    min_dist = np.inf
+    min_matching = None
+    for matching in permutations(list(range(len(pts1))), len(pts1)):
+        indices = list(matching)
+        distances = []
+        for i, idx in enumerate(indices):
+            key = (min(i,idx), max(i,idx))
+            distances.append(dist_dict[key])
+
+        distances = np.array(distances)
+        rmsd = np.mean(distances**2)
+        if rmsd < min_dist:
+            min_dist = rmsd
+            min_matching = indices
+
+    return min_dist, min_matching
+
+
+def best_fit_no_translation(points_1, points_2):
+    """
+    Find the best fit rotation that maps points_1 to points2.
+    """
+    n_dim = points_1.shape[1]
+
+    # rotation matrix
+    H = np.dot(points_1.T, points_2)
+    U, S, Vt = np.linalg.svd(H)
+    R = np.dot(Vt.T, U.T)
+
+    # special reflection case
+    if np.linalg.det(R) < 0:
+        Vt[n_dim-1,:] *= -1
+        R = np.dot(Vt.T, U.T)
+
+    return R
+
+def icp_no_translation(points_1, points_2, max_iter=20, tol=0.0001):
+    """
+    Given a set of points_1, and a set of points_2, find the best-fit
+    transform mapping points_1 to points_2.
+
+    Input Nxn_dim array.
+    """
+
+    # check data types
+    if not is_two_d_array_of_floats(points_1) or not is_two_d_array_of_floats(points_2):
+        raise TypeError
+    points_1 = np.array(points_1)
+    points_2 = np.array(points_2)
+
+    if points_1.shape != points_2.shape:
+        raise ValueError
+
+    n_dim = points_1.shape[1]
+    if n_dim != 3:
+        print("ERROR: data isn't 3d.")
+        raise ValueError
+
+    src = np.copy(points_1.T)
+    dst = np.copy(points_2.T)
+
+    prev_error = 0
+
+    for i in range(max_iter):
+        # find the nearest neighbors
+        rmsd, indices = nearest_neighbor_best_match(src.T, dst.T)
+
+        # best fit transformation
+        R = best_fit_no_translation(src.T, dst[:,indices].T)
+
+        # update current source
+        src = np.dot(R, src)
+
+        print(rmsd, indices)
+
+        # check error
+        if np.abs(prev_error - rmsd) < tol:
+            break
+
+        prev_error = rmsd
+    
+    # final transformation
+    R = best_fit_no_translation(points_1, src.T)
+
+    return R, rmsd, i
+
+    
 def best_fit_transform(points_1, points_2):
     """
     Find the best fit transform that maps points_1 to points_2.
@@ -53,12 +159,12 @@ def best_fit_transform(points_1, points_2):
     return T, R, t
 
 
-def iterative_closest_point(points_1, points_2, max_iter=20, tol=0.001):
+def iterative_closest_point(points_1, points_2, max_iter=20, tol=0.0001):
     """
     Given a set of points_1, and a set of points_2, find the best-fit
     transform mapping points_1 to points_2.
 
-    Given Nxn_dim or n_dimxN arrays, the assumption is that N>n_dim.
+    Input Nxn_dim array.
     """
 
     # check data types
@@ -67,19 +173,13 @@ def iterative_closest_point(points_1, points_2, max_iter=20, tol=0.001):
     points_1 = np.array(points_1)
     points_2 = np.array(points_2)
 
-    shape_1 = points_1.shape
-    shape_2 = points_2.shape
-
-    if shape_1[0] < shape_1[1]:
-        points_1 = points_1.T
-
-    if shape_2[0] < shape_2[1]:
-        points_2 = points_2.T
-
     if points_1.shape != points_2.shape:
         raise ValueError
 
     n_dim = points_1.shape[1]
+    if n_dim != 3:
+        print("ERROR: data isn't 3d.")
+        raise ValueError
 
     # expand coord arrays so that you can apply the entire transformation in one go
     src = np.ones((n_dim + 1, points_1.shape[0]))
@@ -100,13 +200,13 @@ def iterative_closest_point(points_1, points_2, max_iter=20, tol=0.001):
         src = np.dot(T, src)
 
         # check error
-        mean_error = np.mean(distances)
+        mean_error = np.sqrt(np.mean(distances**2))
         if np.abs(prev_error - mean_error) < tol:
             break
 
         prev_error = mean_error
     
     # final transformation
-    T, _, _ = best_fit_transform(points_1, src[:n_dim, :].T)
+    T, R, t = best_fit_transform(points_1, src[:n_dim, :].T)
 
-    return T, distances, i
+    return R, distances, i, t

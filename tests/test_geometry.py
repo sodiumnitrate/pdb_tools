@@ -74,3 +74,88 @@ class TestGeometry:
 
         assert min_geom == 'tpr'
         assert min_rmsd < 1e-10
+
+    def test_compare_two_geometries_cn2(self):
+        rmsd = compare_two_geometries('lin', 'lin')
+        assert rmsd == 0
+
+        rmsd = compare_two_geometries('lin', 'trv')
+        assert rmsd < 1.6
+
+        rmsd2 = compare_two_geometries('trv', 'lin')
+        assert np.isclose(rmsd, rmsd2)
+
+    def test_compare_two_geometries_cn3(self):
+        cn = 3
+        rmsds = {}
+        for g1 in coordination_numbers[cn]:
+            for g2 in coordination_numbers[cn]:
+                rmsds[(g1,g2)]= compare_two_geometries(g1, g2)
+
+        for key, val in rmsds.items():
+            print(key, val)
+            if key[0] == key[1]:
+                assert np.isclose(val, 0)
+
+            rmsd2 = rmsds[(key[1], key[0])]
+            assert np.isclose(rmsd2, val)
+
+    def test_compare_two_geometries_cn4(self):
+        cn = 4
+        rmsds = {}
+        for g1 in coordination_numbers[cn]:
+            for g2 in coordination_numbers[cn]:
+                rmsds[(g1,g2)] = compare_two_geometries(g1, g2)
+
+        for key, val in rmsds.items():
+            print(key, val)
+            if key[0] == key[1]:
+                assert np.isclose(val, 0)
+
+            rmsd2 = rmsds[(key[1], key[0])]
+            assert np.isclose(rmsd2, val)
+
+    def test_compare_two_geometries_cn5(self):
+        cn = 5
+        rmsds = {}
+        for g1 in coordination_numbers[cn]:
+            for g2 in coordination_numbers[cn]:
+                rmsds[(g1,g2)] = compare_two_geometries(g1, g2)
+
+        for key, val in rmsds.items():
+            print(key, val)
+            if key[0] == key[1]:
+                assert np.isclose(val, 0)
+
+            rmsd2 = rmsds[(key[1], key[0])]
+            assert np.isclose(rmsd2, val)
+
+    def test_compare_two_geometries_cn6(self):
+        cn = 6
+        rmsds = {}
+        for g1 in coordination_numbers[cn]:
+            for g2 in coordination_numbers[cn]:
+                rmsds[(g1,g2)] = compare_two_geometries(g1, g2)
+
+        for key, val in rmsds.items():
+            print(key, val)
+            if key[0] == key[1]:
+                assert np.isclose(val, 0)
+
+            rmsd2 = rmsds[(key[1], key[0])]
+            assert np.isclose(rmsd2, val)
+
+    def test_1(self):
+        g1 = 'spl'
+        g2 = 'bva'
+
+        pts1 = np.array(ligand_coords[g1], dtype=np.float_)
+        pts2 = np.array(ligand_coords[g2], dtype=np.float_)
+
+        rmsd, best_rot, pts2p = best_match(pts1, pts2)
+
+        rmsd2, best_rot2, pts1p = best_match(pts2, pts1)
+        assert np.isclose(rmsd, rmsd2)
+
+        rmsd, best_rot, pts2p = best_match(pts1, pts1)
+        assert rmsd == 0

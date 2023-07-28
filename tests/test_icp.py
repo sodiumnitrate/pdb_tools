@@ -29,12 +29,12 @@ class TestICP:
         rot = R.from_euler('z', 90, degrees=True).as_matrix()
         points_2 = rot.dot(points_1)
 
-        transform, distances, n_iter = iterative_closest_point(points_1, points_2)
+        points_1 = points_1.T
+        points_2 = points_2.T
 
-        rot_from_icp = transform[:3,:3]
-        t_from_icp = transform[:3, 3] 
+        rotation, distances, n_iter, t = iterative_closest_point(points_1, points_2)
 
-        assert np.abs(np.sum(t_from_icp)) < 1e-10
+        assert np.abs(np.sum(t)) < 1e-10
         assert np.abs(np.sum(distances)) < 1e-10
 
-        assert np.abs(np.abs(np.linalg.det(rot_from_icp)) - 1 ) < 1e-10
+        assert np.abs(np.abs(np.linalg.det(rotation)) - 1 ) < 1e-10

@@ -4,8 +4,9 @@ Functions and tools to do the necessary computational geometry.
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import permutations
 
-from pdb_tools.icp import iterative_closest_point
+from pdb_tools.icp import icp_no_translation
 
 # coordination labels from Andreini et al.
 coordination_geometry_labels = ['lin', 'trv', 'tri', 'tev', 'spv', 'tet', 'spl',
@@ -155,6 +156,22 @@ ligand_coords['ctf'] = copy.copy(ligand_coords['ctp'][:1]) + copy.copy(ligand_co
 # csa (square antiprism, square-face monocapped) --> add an extra atom to the top
 ligand_coords['csa'] = copy.copy(sqa) + [[0,0,1]]
 
+def check_coordination_geometry(ligands, center, geom):
+    """
+    Given coordinates, and geometry name, get rmsd.
+    """
+    coordination_number = len(ligands)
+    coords = normalize_bond_lengths(ligands, center)
+    #geom_coords = np.array(ligand_coords[geom] + [[0,0,0]], dtype=np.float_)
+    #_, distances, _ = icp_no_translation(coords, geom_coords)
+    #rmsd = np.sqrt(np.sum(distances**2)) / (coordination_number + 1)
+
+    coords = coords[:-1,:]
+    geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
+    rmsd, R, pts2 = best_match(coords, geom_coords)
+
+    return rmsd
+
 def find_coordination_geometry(ligands, center):
     """
     Given an array of coordinates for the ligands (N by 3), and given
@@ -165,14 +182,20 @@ def find_coordination_geometry(ligands, center):
     coordination_number = len(ligands)
 
     coords = normalize_bond_lengths(ligands, center)
+    coords = coords[:-1,:]
 
     possibilities = []
     for geom in coordination_numbers[coordination_number]:
+        """
         geom_coords = np.array(ligand_coords[geom] + [[0,0,0]], dtype=np.float_)
 
-        _, distances, _ = iterative_closest_point(coords, geom_coords)
+        _, distances, _ = icp_no_translation(coords, geom_coords)
         rmsd = np.sqrt(np.sum(distances**2)) / (coordination_number + 1)
 
+        possibilities.append((geom, rmsd))
+        """
+        geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
+        rmsd, R, pts2 = best_match(coords, geom_coords)
         possibilities.append((geom, rmsd))
 
     min_rmsd = possibilities[0][1]
@@ -200,12 +223,88 @@ def normalize_bond_lengths(ligands, center):
 
     return np.array(coords)
 
-def plot_geometry(coords):
+def plot_geometry(coords, plot_zero=True):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.set_aspect('equal')
     for coord in coords:
         ax.scatter3D(coord[0], coord[1], coord[2], color='blue')
 
-    ax.scatter3D([0], [0], [0], color='red')
+    if plot_zero:
+        ax.scatter3D([0], [0], [0], color='red')
     plt.show()
+
+def compare_two_geometries(geom_1, geom_2):
+    """
+    Given 3-letter names of two geometries, compare them and calculate RMSD.
+    """
+    geom_1_coords = np.array(ligand_coords[geom_1], dtype=np.float_)
+    geom_2_coords = np.array(ligand_coords[geom_2], dtype=np.float_)
+
+    rmsd, R, pts2 = best_match(geom_1_coords, geom_2_coords)
+    return rmsd
+
+
+def best_fit_rotation(pts1, pts2):
+    """
+    Given two sets of points, find the best fit rotation.
+
+    Assumes translation is 0.
+    """
+    n_dim = pts1.shape[1]
+
+    # rotation matrix
+    H = np.dot(pts1.T, pts2)
+    U, S, Vt = np.linalg.svd(H)
+    R = np.dot(Vt.T, U.T)
+
+    # special reflection case
+    if np.linalg.det(R) < 0:
+        Vt[n_dim-1,:] *= -1
+        R = np.dot(Vt.T, U.T)
+
+    return R
+
+def distance(pts1, pts2):
+    """
+    Given two sets of points, return distance between each pair of points.
+    """
+    if pts1.shape != pts2.shape:
+        print("WARNING: input point sets must have the same dimensions.")
+        raise ValueError
+
+    cn = len(pts1)
+    d = []
+    for i in range(cn):
+        dist = np.linalg.norm(pts1[i,:] - pts2[i,:])
+        d.append(dist)
+    return np.array(d)
+
+def best_match(pts1, pts2):
+    """
+    Given two sets of points, find the best matching between the two
+    that gives the smallest rmsd.
+    """
+    if pts1.shape != pts2.shape:
+        print("WARNING: input point sets must have the same dimensions.")
+        raise ValueError
+
+    cn = len(pts1)
+    indices = list(range(cn))
+
+    min_dist = np.inf
+    min_matching = None
+    best_rot = None
+    for matching in permutations(indices, cn):
+        idx = list(matching)
+        pts2_p = pts2[idx,:]
+        R = best_fit_rotation(pts1, pts2_p)
+        pts1p = R.dot(pts1.T).T
+        d = distance(pts1p, pts2_p)
+        rmsd = np.mean(d**2)
+        if rmsd < min_dist:
+            min_dist = rmsd
+            min_matching = matching
+            best_rot = R
+
+    return min_dist, best_rot, pts2[list(min_matching),:]

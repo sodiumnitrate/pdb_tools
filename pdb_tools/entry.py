@@ -3,9 +3,11 @@ Definition of the entry class.
 
 (entry = PDB entry in PDB lingo)
 """
+import copy
 import numpy as np
 import gemmi
 from pdb_tools.utils import get_pdbx, is_position
+from pdb_tools.metal_site import MetalSite
 
 class Entry:
     def __init__(self, pdb_id):
@@ -13,6 +15,8 @@ class Entry:
         
         self.structure = None
         self.fetch_structure()
+
+        self.metal_sites = []
 
     def write_cif(self, file_name):
         """Function to write the .cif file corresponding to the pdb ID to file."""
@@ -176,7 +180,7 @@ class Entry:
 
     def unfragmented_positions(self, atom_list):
         """
-        Given a list of atom, return a list of positions such that the nearest pbc
+        Given a list of atoms, return a list of positions such that the nearest pbc
         image positions are returned.
 
         Uses the first atom in the list as a reference and brings all other atoms
@@ -236,3 +240,34 @@ class Entry:
 
         com /= tot_w
         return com
+
+    def get_metal_sites(self, metal_element, model_idx=0):
+        """
+        Given the metal element, find and compile a list of metal sites.
+
+        Skips H and C.
+        """
+        elements = self.get_elements()
+        if metal_element not in elements:
+            print(f"ERROR: {metal_element} not in the structure with PDB ID: {self.pdb_id} and model {model_idx}.")
+            raise ValueError
+
+        self.metal_sites = []
+
+        selection_string = f"[{metal_element}]"
+        atoms = self.select_atoms(selection_string, model_idx=model_idx)
+
+        for atom in atoms:
+            neigs = self.find_neighboring_atoms(atom, max_dist=3, model_idx=model_idx)
+            atom_list = [atom]
+            for neig in neigs:
+                if neig.atom.element.name != 'H' and neig.atom.element.name != 'C':
+                    atom_list.append(neig)
+
+            positions = self.unfragmented_positions(atom_list)
+
+            new_metal = MetalSite(atom,
+                                  atom_list[1:],
+                                  positions)
+            self.metal_sites.append(new_metal)
+            

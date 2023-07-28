@@ -141,3 +141,14 @@ class TestEntry:
         com = entry.find_center_of_mass(neigs)
 
         assert np.linalg.norm(np.array([copper.pos[0], copper.pos[1], copper.pos[2]]) - com) < 1
+
+    def test_get_metal_sites(self):
+        entry = Entry('2c9p')
+        entry.get_metal_sites('Cu')
+
+        assert len(entry.metal_sites) > 0
+
+        for site in entry.metal_sites:
+            for l in site.ligands:
+                assert l.atom.element.name != 'C'
+                assert l.atom.element.name != 'H'
