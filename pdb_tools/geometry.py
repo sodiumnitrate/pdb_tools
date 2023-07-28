@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import permutations
 
-from pdb_tools.icp import icp_no_translation
+#from pdb_tools.icp import icp_no_translation
 
 # coordination labels from Andreini et al.
 coordination_geometry_labels = ['lin', 'trv', 'tri', 'tev', 'spv', 'tet', 'spl',
@@ -25,6 +25,44 @@ CN_7 = ['pbp', 'coc', 'ctp', 'hva', 'hvp', 'cuv', 'sav']
 CN_8 = ['hbp', 'cub', 'sqa', 'boc', 'bts', 'btt']
 CN_9 = ['ttp', 'csa']
 
+coordination_geometry_names = {label:'' for label in coordination_geometry_labels}
+coordination_geometry_names['lin'] = 'Linear'
+coordination_geometry_names['trv'] = 'Trigonal plane with valence'
+coordination_geometry_names['tri'] = 'Trigonal plane'
+coordination_geometry_names['tev'] = 'Tetrahedron with a vacancy'
+coordination_geometry_names['spv'] = 'Square plane with a vacancy'
+coordination_geometry_names['tet'] = 'Tetrahedron'
+coordination_geometry_names['spl'] = 'Square plane'
+coordination_geometry_names['bva'] = 'Trigonal bipyramid with a vacancy (axial)'
+coordination_geometry_names['bvp'] = 'Trigonal bipyramid with a vacancy (equatorial)'
+coordination_geometry_names['pyv'] = 'Square pyramid with a vacancy (equatorial)'
+coordination_geometry_names['spy'] = 'Square pyramid'
+coordination_geometry_names['tbp'] = 'Trigonal bipyramid'
+coordination_geometry_names['tpv'] = 'Trigonal prism with a vacancy'
+coordination_geometry_names['oct'] = 'Octahedron'
+coordination_geometry_names['tpr'] = 'Trigonal prism'
+coordination_geometry_names['pva'] = 'Pentagonal bipyramid with a vacancy (axial)'
+coordination_geometry_names['pvp'] = 'Pentagonal bipyramid with a vacancy (equatorial)'
+coordination_geometry_names['cof'] = 'Octahedron, face monocapped with a vacancy (capped face)'
+coordination_geometry_names['con'] = 'Octahedron, face monocapped with a vacancy (non-capped face)'
+coordination_geometry_names['ctf'] = 'Trigonal prism, square-face monocapped with a vacancy (capped face)'
+coordination_geometry_names['ctn'] = 'Trigonal prism, square-face monocapped with a vacancy (non-capped edge)'
+coordination_geometry_names['pbp'] = 'Pentagonal bipyramid'
+coordination_geometry_names['coc'] = 'Octahedron, face monocapped'
+coordination_geometry_names['ctp'] = 'Trigonal prism, square-face monocapped'
+coordination_geometry_names['hva'] = 'Hexagonal bipyramid with a vacancy (axial)'
+coordination_geometry_names['hvp'] = 'Hexagonal bipyramid with a vacancy (equatorial)'
+coordination_geometry_names['cuv'] = 'Cube with a vacancy'
+coordination_geometry_names['sav'] = 'Square antiprism with a vacancy'
+coordination_geometry_names['hbp'] = 'Hexagonal bipyramid'
+coordination_geometry_names['cub'] = 'Cube'
+coordination_geometry_names['sqa'] = 'Square antiprism'
+coordination_geometry_names['boc'] = 'Octahedron, trans-bicapped'
+coordination_geometry_names['bts'] = 'Trigonal prism, square-face bicapped'
+coordination_geometry_names['btt'] = 'Trigonal prism, triangular-face bicapped'
+coordination_geometry_names['ttp'] = 'Trigonal prism, square-face tricapped'
+coordination_geometry_names['csa'] = 'Square antiprism, square-face monocapped'
+
 coordination_numbers = {2: CN_2, 3: CN_3, 4: CN_4, 5: CN_5, 6: CN_6, 7: CN_7, 8: CN_8, 9: CN_9}
 label_to_CN = {}
 for key, value in coordination_numbers.items():
@@ -32,8 +70,8 @@ for key, value in coordination_numbers.items():
         label_to_CN[el] = key
 
 ligand_coords = {'lin': [[-1., 0, 0], [1, 0, 0]],
-                 'trv': [[-1*np.sqrt(3)/2, -0.5, 0], [1, 0, 0]],
-                 'tri': [[-1*np.sqrt(3)/2, -0.5, 0], [1, 0, 0], [-1*np.sqrt(3)/2, 0.5, 0]]}
+                 'trv': [[-0.5, -1*np.sqrt(3)/2, 0], [1, 0, 0]],
+                 'tri': [[-0.5, -1*np.sqrt(3)/2, 0], [1, 0, 0], [-0.5, 1*np.sqrt(3)/2, 0]]}
 
 def tetrahedral():
     # function to calculate and return unit vectors for tetrahedral geom
@@ -56,9 +94,7 @@ ligand_coords['spv'] = [[1.,0.,0.], [-1., 0., 0.], [0., -1., 0.]]
 ligand_coords['spl'] = [[1.,0.,0.], [-1., 0., 0.], [0., -1., 0.], [0., 1., 0.]]
 
 # trigonal bipyramidals
-trigonal_bipyramidal = [[0,0,1.], [0,0,-1], [1,0,0],
-                        [-1*np.sqrt(3)/2, -0.5, 0],
-                        [-1*np.sqrt(3)/2, 0.5, 0]]
+trigonal_bipyramidal = [[0,0,1.], [0,0,-1]] + copy.copy(ligand_coords['tri'])
 
 ligand_coords['tbp'] = copy.copy(trigonal_bipyramidal)
 ligand_coords['bva'] = copy.copy(trigonal_bipyramidal[1:])
@@ -71,15 +107,15 @@ ligand_coords['pyv'] = copy.copy(sq_py[1:])
 
 # tpv/tpr (trigonal prism)
 def trigonal_prism():
-    l = np.sqrt(12/13)
-    h = l / np.sqrt(3)
+    l = 1./np.sqrt(7)
+    h = np.sqrt(12./7)
 
-    v1 = [0, l, 0.5*h]
-    v2 = [l*np.sqrt(3)/2, -l/2, 0.5*h]
-    v3 = [-l*np.sqrt(3)/2, -l/2, 0.5*h]
-    v4 = [0, l, -0.5*h]
-    v5 = [l*np.sqrt(3)/2, -l/2, -0.5*h]
-    v6 = [-l*np.sqrt(3)/2, -l/2, -0.5*h]
+    v1 = [0, 2*l, 0.5*h]
+    v2 = [-0.5*h, -1*l, 0.5*h]
+    v3 = [0.5*h, -1*l, 0.5*h]
+    v4 = [0, 2*l, -0.5*h]
+    v5 = [-0.5*h, -1*l, -0.5*h]
+    v6 = [0.5*h, -1*l, -0.5*h]
 
     return [v1, v2, v3, v4, v5, v6]
 
@@ -170,7 +206,10 @@ def check_coordination_geometry(ligands, center, geom):
     geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
     rmsd, R, pts2 = best_match(coords, geom_coords)
 
-    return rmsd
+    less_than_AT = rmsd < assignment_threshold[geom]
+    less_than_DT = rmsd < distortion_threshold[geom]
+
+    return rmsd, less_than_AT, less_than_DT
 
 def find_coordination_geometry(ligands, center):
     """
@@ -186,26 +225,31 @@ def find_coordination_geometry(ligands, center):
 
     possibilities = []
     for geom in coordination_numbers[coordination_number]:
-        """
-        geom_coords = np.array(ligand_coords[geom] + [[0,0,0]], dtype=np.float_)
-
-        _, distances, _ = icp_no_translation(coords, geom_coords)
-        rmsd = np.sqrt(np.sum(distances**2)) / (coordination_number + 1)
-
-        possibilities.append((geom, rmsd))
-        """
         geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
-        rmsd, R, pts2 = best_match(coords, geom_coords)
-        possibilities.append((geom, rmsd))
+        rmsd, _, _ = best_match(coords, geom_coords)
+        less_than_AT = rmsd < assignment_threshold[geom]
+        less_than_DT = rmsd < distortion_threshold[geom]
+        if not less_than_AT:
+            continue
+        possibilities.append((geom, rmsd, less_than_AT, less_than_DT))
+
+    if len(possibilities) == 0:
+        print("WARNING: no possible assignments found.")
+        return None, None, None
 
     min_rmsd = possibilities[0][1]
     min_geom = possibilities[0][0]
-    for geom, rmsd in possibilities:
+    distorted = not possibilities[0][-1]
+    for geom, rmsd, _, l_DT in possibilities:
         if rmsd < min_rmsd:
             min_rmsd = rmsd
             min_geom = geom
+            distorted = not l_DT
 
-    return min_geom, min_rmsd
+    if distorted is None:
+        return None, None, None
+
+    return min_geom, min_rmsd, distorted
 
 def normalize_bond_lengths(ligands, center):
     """
@@ -301,10 +345,57 @@ def best_match(pts1, pts2):
         R = best_fit_rotation(pts1, pts2_p)
         pts1p = R.dot(pts1.T).T
         d = distance(pts1p, pts2_p)
-        rmsd = np.mean(d**2)
+        rmsd = np.sqrt(np.mean(d**2))
         if rmsd < min_dist:
             min_dist = rmsd
             min_matching = matching
             best_rot = R
 
     return min_dist, best_rot, pts2[list(min_matching),:]
+
+
+# TODO: is there a better way to do this?
+geom_thresholds = """lin 0.25881904510252074 0.25881904510252074
+trv 0.25881904510252074 0.25881904510252074
+tri 0.16910197872576282 0.2113248654051871
+tev 0.16910197872576285 0.24732126143424196
+spv 0.2113248654051871 0.24732126143424196
+tet 0.14644660940672613 0.30290544652768614
+spl 0.18301270189221933 0.3266756093699887
+bva 0.14644660940672616 0.3266756093699887
+bvp 0.09229595564125724 0.2166341981837778
+pyv 0.09229595564125728 0.27059805007309845
+spy 0.16369153687076268 0.20123643203933214
+tbp 0.16369153687076268 0.18353003987052263
+tpv 0.1835300398705227 0.20123643203933214
+oct 0.1421883347398175 0.2966011848770199
+tpr 0.16610333076733078 0.24934072472241658
+pva 0.14306177797101235 0.2966011848770199
+pvp 0.1421883347398175 0.24841972303098867
+cof 0.14390499166611917 0.2023399366805026
+con 0.17478572691393254 0.2787563034450018
+ctf 0.1430617779710123 0.2152307878630878
+ctn 0.14248638401127614 0.24934072472241653
+pbp 0.12438818365078702 0.2751857287036503
+coc 0.12719425753652283 0.2612199498875671
+ctp 0.10847143014774503 0.256161519068391
+hva 0.15655801081562157 0.2751857287036503
+hvp 0.12438818365078703 0.24461665926091966
+cuv 0.12719425753652286 0.188748023672228
+sav 0.10847143014774507 0.2182230916888635
+hbp 0.1464466094067262 0.25214083786810737
+cub 0.11897933331668945 0.24842154942429004
+sqa 0.10305711245039832 0.26560351903516544
+boc 0.11897933331668949 0.21029799262993193
+bts 0.10305711245039834 0.2567091783334269
+btt 0.18115570978365955 0.26560351903516544
+ttp 0.09716317741757498 0.09716317741757498
+csa 0.09716317741757498 0.09716317741757498"""
+
+distortion_threshold = {}
+assignment_threshold = {}
+for line in geom_thresholds.split('\n'):
+    ls = line.split()
+    g = ls[0]
+    distortion_threshold[g] = float(ls[1])
+    assignment_threshold[g] = float(ls[2])

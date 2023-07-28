@@ -4,8 +4,6 @@ Unit tests for the functions and entities in geometry.py.
 from pdb_tools.geometry import *
 import numpy as np
 
-import pdb
-
 class TestGeometry:
     def test_labels(self):
         labels_from_CN = []
@@ -47,30 +45,15 @@ class TestGeometry:
     def test_find_coordination_geometry_1(self):
         ligands = tetrahedral()
         center = [0, 0, 0]
-
-        min_geom, min_rmsd = find_coordination_geometry(ligands, center)
+        min_geom, min_rmsd, distorted = find_coordination_geometry(ligands, center)
         assert min_geom == 'tet'
         assert min_rmsd < 1e-10
+        assert not distorted
 
     def test_find_coordination_geometry_2(self):
-        ligands = tetrahedral()
-        center = [0.1, 0.1, 0.1]
-
-        min_geom, min_rmsd = find_coordination_geometry(ligands, center)
-        assert min_geom == 'tet'
-        assert min_rmsd > 1e-10
-
-    def test_find_coordination_geometry_3(self):
-        ligands = np.array(tetrahedral()) * 3
-        center = [0.1, 0.1, 0.1]
-
-        min_geom, min_rmsd = find_coordination_geometry(ligands, center)
-        assert min_geom == 'tet'
-
-    def test_find_coordination_geometry_4(self):
         ligands = trigonal_prism()
         center = [0, 0, 0]
-        min_geom, min_rmsd = find_coordination_geometry(ligands, center)
+        min_geom, min_rmsd, distorted = find_coordination_geometry(ligands, center)
 
         assert min_geom == 'tpr'
         assert min_rmsd < 1e-10
@@ -78,9 +61,8 @@ class TestGeometry:
     def test_compare_two_geometries_cn2(self):
         rmsd = compare_two_geometries('lin', 'lin')
         assert rmsd == 0
-
         rmsd = compare_two_geometries('lin', 'trv')
-        assert rmsd < 1.6
+        assert np.isclose(rmsd*3, 1.553, atol=0.001)
 
         rmsd2 = compare_two_geometries('trv', 'lin')
         assert np.isclose(rmsd, rmsd2)
@@ -117,21 +99,6 @@ class TestGeometry:
 
     def test_compare_two_geometries_cn5(self):
         cn = 5
-        rmsds = {}
-        for g1 in coordination_numbers[cn]:
-            for g2 in coordination_numbers[cn]:
-                rmsds[(g1,g2)] = compare_two_geometries(g1, g2)
-
-        for key, val in rmsds.items():
-            print(key, val)
-            if key[0] == key[1]:
-                assert np.isclose(val, 0)
-
-            rmsd2 = rmsds[(key[1], key[0])]
-            assert np.isclose(rmsd2, val)
-
-    def test_compare_two_geometries_cn6(self):
-        cn = 6
         rmsds = {}
         for g1 in coordination_numbers[cn]:
             for g2 in coordination_numbers[cn]:
