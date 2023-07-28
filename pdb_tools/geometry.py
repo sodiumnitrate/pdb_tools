@@ -1,6 +1,10 @@
 """
 Functions and tools to do the necessary computational geometry.
+
+TODO:
+- find a way to optimize geometry finding. Currently, CN>7 is a bit of a problem.
 """
+
 import copy
 import numpy as np
 import matplotlib.pyplot as plt

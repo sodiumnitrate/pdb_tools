@@ -33,10 +33,12 @@ class MetalSite:
             print("No geometry has been assigned.")
             return
 
-        name = coordination_geometry_names[self.assign_geometry]
+        name = coordination_geometry_names[self.assigned_geometry]
         if self.distorted:
             name += " (distorted)"
-        name += f" rmsd={self.rmsd}"
+        else:
+            name += " (regular)"
+        name += f" rmsd={self.rmsd:.3f}"
 
         print(name)
 
