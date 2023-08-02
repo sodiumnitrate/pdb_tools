@@ -15,6 +15,11 @@ class MetalSite:
         self.assigned_geometry = None
         self.rmsd = None
 
+        # whether there's an aromatic residue nearby
+        self.nearby_aromatic = None
+        self.aromatic_d0 = None
+        self.aromatic_theta0 = None
+
     def assign_geometry(self):
         ligands = self.unfragmented_coords[1:]
         center = self.unfragmented_coords[0]
@@ -25,22 +30,23 @@ class MetalSite:
         self.rmsd = min_rmsd
         self.distorted = distorted
 
+        if self.assigned_geometry is None:
+            self.assigned_geometry = 'irr'
+
     def print_geometry(self):
         if self.assigned_geometry is None:
             self.assign_geometry()
-        
-        if self.assign_geometry is None:
-            print("No geometry has been assigned.")
-            return
 
         name = coordination_geometry_names[self.assigned_geometry]
-        if self.distorted:
-            name += " (distorted)"
-        else:
-            name += " (regular)"
-        name += f" rmsd={self.rmsd:.3f}"
+        if self.distorted is not None:
+            if self.distorted:
+                name += " (distorted)"
+            else:
+                name += " (regular)"
+        if self.rmsd is not None:
+            name += f" rmsd={self.rmsd:.3f}"
 
-        print(name)
+        return name
 
     def plot_metal_site(self):
         plot_geometry(self.unfragmented_coords, plot_zero=False)

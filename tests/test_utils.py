@@ -98,3 +98,9 @@ class TestUtils:
 
         array = [[2,0.2],[0,0]]
         assert not is_two_d_array_of_floats(array)
+
+    def test_find_normal(self):
+        points = [[0,0,0], [-5,0,0.1], [0,5,0], [5,0,-0.1], [-5, -5, 0.5]]
+        normal = find_normal_to_plane_of_points(points)
+        assert len(normal) == 3
+        assert isinstance(normal, np.ndarray)

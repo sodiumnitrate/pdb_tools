@@ -6,8 +6,10 @@ Definition of the entry class.
 import copy
 import numpy as np
 import gemmi
-from pdb_tools.utils import get_pdbx, is_position
+from pdb_tools.utils import get_pdbx, is_position, atom_list_to_cra_list, find_normal_to_plane_of_points
 from pdb_tools.metal_site import MetalSite
+
+import pdb
 
 class Entry:
     def __init__(self, pdb_id):
@@ -60,7 +62,7 @@ class Entry:
                         ref_atoms.append(atom)
         return ref_atoms
 
-    def find_neighboring_atoms(self, ref_atom, max_dist=3, model_idx=0):
+    def find_neighboring_atoms(self, ref_atom, max_dist=3, model_idx=0, tol=0.01):
         """
         Function that, given a reference atom, find neighboring atoms in a
         maximum distance of max_dist.
@@ -78,9 +80,46 @@ class Entry:
         close_atoms = []
         for mark in marks:
             cra = mark.to_cra(self.structure[model_idx])
-            close_atoms.append(cra)
+            if cra.atom.has_altloc():
+                if cra.atom.altloc == 'A':
+                    close_atoms.append(cra)
+            else:
+                close_atoms.append(cra)
 
-        return close_atoms
+        # filter close atoms such that those that are close to each other with partial occupancy are merged
+        filtered = []
+        merged = []
+        for i, atom1 in enumerate(close_atoms):
+            if i in merged:
+                continue
+            if atom1.atom.occ == 1:
+                filtered.append(atom1)
+                continue
+
+            occ = atom1.atom.occ
+            for j, atom2 in enumerate(close_atoms):
+                if occ == 1:
+                    continue
+                if j <= i:
+                    continue
+                
+                if atom2.atom.occ == 1:
+                    continue
+
+                # check identity
+                if atom1.atom.name != atom2.atom.name:
+                    continue
+                if atom1.residue.name != atom2.residue.name:
+                    continue
+                d_vec = atom1.atom.pos - atom2.atom.pos
+                if d_vec.length() < tol:
+                    occ += atom2.atom.occ
+                    merged.append(j)
+
+            atom1.atom.occ = occ
+            filtered.append(atom1)
+
+        return filtered
 
     def find_closest_from_each_residue(self, ref_atom, max_dist=3, model_idx=0):
         """
@@ -155,8 +194,13 @@ class Entry:
         Given two positions, return the displacement vector corresponding to the
         smallest distance between the two points under PBC and symmetry operations.
         """
+        if not isinstance(pos1, gemmi.Position):
+            pos1 = gemmi.Position(pos1[0], pos1[1], pos1[2])
+        if not isinstance(pos2, gemmi.Position):
+            pos1 = gemmi.Position(pos2[0], pos2[1], pos2[2])
 
         # TODO: is there a better way to do this??
+        # TODO: you need an exception if the two atoms are the same
         i = 0
         while True:
             try:
@@ -212,7 +256,7 @@ class Entry:
 
         return np.array(new_positions)
 
-    def find_center_of_mass(self, atom_list=None, selection_string=None, model_idx=0):
+    def find_center_of_mass(self, atom_list=None, selection_string=None, unweighted=False, model_idx=0):
         """
         Find center of mass of a given atom list or selection of atoms.
 
@@ -235,6 +279,8 @@ class Entry:
                 w = atom.element.weight
             else:
                 raise TypeError
+            if unweighted:
+                w = 1
             tot_w += w
             com += positions[i] * w
 
@@ -258,9 +304,12 @@ class Entry:
         atoms = self.select_atoms(selection_string, model_idx=model_idx)
 
         for atom in atoms:
+            atom_cra = atom_list_to_cra_list([atom], self.structure, model_idx=model_idx)
             neigs = self.find_neighboring_atoms(atom, max_dist=3, model_idx=model_idx)
             atom_list = [atom]
             for neig in neigs:
+                if neig.atom.pos == atom_cra[0].atom.pos and neig.atom.name == atom_cra[0].atom.name:
+                    continue
                 if neig.atom.element.name != 'H' and neig.atom.element.name != 'C':
                     atom_list.append(neig)
 
@@ -270,4 +319,100 @@ class Entry:
                                   atom_list[1:],
                                   positions)
             self.metal_sites.append(new_metal)
-            
+    
+    def get_nearby_aromatic(self, ref_atom, max_dist=7, model_idx=0, tol=0.01):
+        """
+        Given a reference atom, find nearby aromatic rings
+        that belong to Y, F, W, or H.
+        """
+        atom_list = self.find_neighboring_atoms(ref_atom, max_dist=max_dist, model_idx=model_idx, tol=tol)
+        aromatic_residues = []
+        for atom in atom_list:
+            if atom.residue.name in ['TRP', 'TYR', 'HIS', 'PHE']:
+                residue = (atom.residue.name,
+                           atom.chain.name,
+                           atom.residue.seqid.num)
+                if residue not in aromatic_residues:
+                    aromatic_residues.append(residue)
+
+        return aromatic_residues
+
+    def get_aromatic_ring_center_and_normal(self, aromatic_residue, model_idx=0, trp_ring=0):
+        """
+        Given an aromatic residue, find its aromatic ring center(s) and
+        the normal to the plane containing the ring(s).
+
+        Input: aromatic_residue = (str: resname, str: chain, int: seqid)
+        Output: two vectors
+
+        TODO: add functionality to deal with a gemmi.Residue object.
+        """
+        resname = aromatic_residue[0]
+        if resname not in ['TYR','PHE','HIS','TRP']:
+            print("ERROR: the residue selected isn't aromatic.")
+            raise ValueError
+
+        chain = aromatic_residue[1]
+        seqid = aromatic_residue[2]
+
+        rings = {'TYR':['CG', 'CD2', 'CE2', 'CZ', 'CE1', 'CD1'],
+                 'PHE':['CG', 'CD2', 'CE2', 'CZ', 'CE1', 'CD1'],
+                 'HIS':['CG', 'ND1', 'CE1', 'NE2', 'CD2'],
+                 'TRP_0':['CD1', 'CG', 'CD2', 'CE2', 'NE1'],
+                 'TRP_1':['CD2', 'CE3', 'CZ3', 'CH2', 'CZ2', 'CE2']}
+
+        if resname == 'TRP':
+            resname += f"_{trp_ring}"
+
+        selection_string = f"/{model_idx+1}/{chain}/{seqid}/"
+
+        selected_atoms = []
+        for name in rings[resname]:
+            s = selection_string + f"{name}[{name[0]}]"
+            atom = self.select_atoms(s)
+            selected_atoms += atom
+
+        positions = self.unfragmented_positions(selected_atoms)
+        normal = find_normal_to_plane_of_points(positions)
+        com = self.find_center_of_mass(selected_atoms, unweighted=True)
+
+        return com, normal
+
+    def find_aromatics_near_metal_sites(self, cutoff=7,
+                                              max_d0=5.5, max_theta0=55,
+                                              model_idx=0, tol=0.01):
+        """
+        After finding metal sites, find aromatic residues around them.
+        """
+        if len(self.metal_sites) == 0:
+            print("ERROR: couldn't find any metal sites. Did you run get_metal_sites() first?")
+            raise ValueError
+
+        for site in self.metal_sites:
+            metal_atom = site.metal
+            aromatic_residues = self.get_nearby_aromatic(metal_atom, max_dist=cutoff,
+                                                         model_idx=model_idx,
+                                                         tol=tol)
+            nearby = []
+            d0_vals = []
+            theta0_vals = []
+            for res in aromatic_residues:
+                if res[0] == "TRP":
+                    n = 2
+                else:
+                    n = 1
+                for i in range(n):   
+                    com, normal = self.get_aromatic_ring_center_and_normal(res, model_idx=model_idx, trp_ring=i)
+                    disp_vec = self.find_displacement_vector(com, metal_atom.pos)
+                    d0 = np.linalg.norm(disp_vec)
+                    theta0_up = np.arccos(np.dot(disp_vec, normal) / (d0 * np.linalg.norm(normal))) * 180 / np.pi
+                    theta0_down = np.arccos(np.dot(disp_vec, -1*normal) / (d0 * np.linalg.norm(normal))) * 180 / np.pi
+                    theta0 = min(theta0_up, theta0_down)
+                    if d0 <= max_d0 and theta0 <= max_theta0:
+                        nearby.append(res)
+                        d0_vals.append(d0)
+                        theta0_vals.append(theta0)
+
+            site.nearby_aromatic = copy.copy(nearby)
+            site.d0 = copy.copy(d0_vals)
+            site.theta0 = copy.copy(theta0_vals)

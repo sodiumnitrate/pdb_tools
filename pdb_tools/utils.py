@@ -129,6 +129,16 @@ def are_points_roughly_planar(points, max_err=0.1):
 
     return True
 
+def find_normal_to_plane_of_points(points):
+    """
+    Given a set of points, fit a plane to them, and compute the normal
+    to the surface of the plane.
+    """
+    points = Points(points)
+    best_fit_plane = Plane.best_fit(points)
+    normal = best_fit_plane.normal
+    return np.array(normal)
+
 def is_position(vec):
     """
     Given a vector, find out if it's consistent with a position vector

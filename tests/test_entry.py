@@ -152,3 +152,54 @@ class TestEntry:
             for l in site.ligands:
                 assert l.atom.element.name != 'C'
                 assert l.atom.element.name != 'H'
+
+    def test_get_metal_sites_2(self):
+        entry = Entry('4DYX')
+        atoms = entry.select_atoms('[Cu]')
+        cu_1 = atoms[0]
+        cu_2 = atoms[1]
+        neigs_2 = entry.find_neighboring_atoms(cu_2)
+
+        assert len(neigs_2) == 6
+
+    def test_get_nearby_aromatic(self):
+        entry = Entry('1GST')
+        atoms = entry.select_atoms('/1/A/55/OD1[O]')
+        aromatic_residues = entry.get_nearby_aromatic(atoms[0])
+
+        assert ('PHE', 'B', 140) in aromatic_residues
+        assert ('PHE', 'A', 56) in aromatic_residues
+
+    def test_get_aromatic_ring(self):
+        entry = Entry('1GST')
+        res = ('PHE', 'A', 56)
+        com, normal = entry.get_aromatic_ring_center_and_normal(res)
+
+        assert len(com) == 3
+        assert len(normal) == 3
+
+    def test_find_aromatic_near_metal(self):
+        entry = Entry('1LLA')
+        entry.get_metal_sites('Cu')
+        entry.find_aromatics_near_metal_sites(max_d0=5.5, max_theta0=55)
+
+        for site in entry.metal_sites:
+            assert site.nearby_aromatic is not None
+            assert site.d0 is not None
+            assert site.theta0 is not None
+
+        assert len(entry.metal_sites[0].nearby_aromatic) == 0
+        assert len(entry.metal_sites[1].nearby_aromatic) == 2
+
+    def test_find_aromatic_near_metal_2(self):
+        entry = Entry('2gli')
+        entry.get_metal_sites('Co')
+        entry.find_aromatics_near_metal_sites(max_d0=5.5, max_theta0=55)
+
+        for site in entry.metal_sites:
+            assert site.nearby_aromatic is not None
+            assert site.d0 is not None
+            assert site.theta0 is not None
+
+        assert len(entry.metal_sites[0].nearby_aromatic) == 1
+        assert entry.metal_sites[0].nearby_aromatic[0] == ('TRP', 'A', 108)

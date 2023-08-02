@@ -67,6 +67,8 @@ coordination_geometry_names['btt'] = 'Trigonal prism, triangular-face bicapped'
 coordination_geometry_names['ttp'] = 'Trigonal prism, square-face tricapped'
 coordination_geometry_names['csa'] = 'Square antiprism, square-face monocapped'
 
+coordination_geometry_names['irr'] = 'irregular (n/a)'
+
 coordination_numbers = {2: CN_2, 3: CN_3, 4: CN_4, 5: CN_5, 6: CN_6, 7: CN_7, 8: CN_8, 9: CN_9}
 label_to_CN = {}
 for key, value in coordination_numbers.items():
@@ -202,9 +204,6 @@ def check_coordination_geometry(ligands, center, geom):
     """
     coordination_number = len(ligands)
     coords = normalize_bond_lengths(ligands, center)
-    #geom_coords = np.array(ligand_coords[geom] + [[0,0,0]], dtype=np.float_)
-    #_, distances, _ = icp_no_translation(coords, geom_coords)
-    #rmsd = np.sqrt(np.sum(distances**2)) / (coordination_number + 1)
 
     coords = coords[:-1,:]
     geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
@@ -223,6 +222,8 @@ def find_coordination_geometry(ligands, center):
     """
     # get coordination number
     coordination_number = len(ligands)
+    if coordination_number == 1 or coordination_number == 0:
+        return None, None, None
 
     coords = normalize_bond_lengths(ligands, center)
     coords = coords[:-1,:]
@@ -238,7 +239,6 @@ def find_coordination_geometry(ligands, center):
         possibilities.append((geom, rmsd, less_than_AT, less_than_DT))
 
     if len(possibilities) == 0:
-        print("WARNING: no possible assignments found.")
         return None, None, None
 
     min_rmsd = possibilities[0][1]
