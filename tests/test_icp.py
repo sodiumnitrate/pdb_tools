@@ -10,7 +10,7 @@ from pdb_tools.geometry import tetrahedral
 from scipy.spatial.transform import Rotation as R
 
 class TestICP:
-    def test_best_fit_transform(test):
+    def test_best_fit_transform(self):
         points_1 = np.array(tetrahedral()).T
         rot = R.from_euler('z', 90, degrees=True).as_matrix()
         points_2 = rot.dot(points_1)

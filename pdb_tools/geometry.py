@@ -206,7 +206,7 @@ def check_coordination_geometry(ligands, center, geom):
     coords = normalize_bond_lengths(ligands, center)
 
     coords = coords[:-1,:]
-    geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
+    geom_coords = np.array(ligand_coords[geom], dtype=np.float64)
     rmsd, R, pts2 = best_match(coords, geom_coords)
 
     less_than_AT = rmsd < assignment_threshold[geom]
@@ -230,7 +230,7 @@ def find_coordination_geometry(ligands, center):
 
     possibilities = []
     for geom in coordination_numbers[coordination_number]:
-        geom_coords = np.array(ligand_coords[geom], dtype=np.float_)
+        geom_coords = np.array(ligand_coords[geom], dtype=np.float64)
         rmsd, _, _ = best_match(coords, geom_coords)
         less_than_AT = rmsd < assignment_threshold[geom]
         less_than_DT = rmsd < distortion_threshold[geom]
@@ -263,7 +263,7 @@ def normalize_bond_lengths(ligands, center):
     """
     coords = []
     for l in ligands:
-        v1 = np.array(l) - np.array(center, dtype=np.float_)
+        v1 = np.array(l) - np.array(center, dtype=np.float64)
         v1 /= np.linalg.norm(v1)
         coords.append(v1)
 
@@ -286,8 +286,8 @@ def compare_two_geometries(geom_1, geom_2):
     """
     Given 3-letter names of two geometries, compare them and calculate RMSD.
     """
-    geom_1_coords = np.array(ligand_coords[geom_1], dtype=np.float_)
-    geom_2_coords = np.array(ligand_coords[geom_2], dtype=np.float_)
+    geom_1_coords = np.array(ligand_coords[geom_1], dtype=np.float64)
+    geom_2_coords = np.array(ligand_coords[geom_2], dtype=np.float64)
 
     rmsd, R, pts2 = best_match(geom_1_coords, geom_2_coords)
     return rmsd

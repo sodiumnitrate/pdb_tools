@@ -116,8 +116,8 @@ class TestGeometry:
         g1 = 'spl'
         g2 = 'bva'
 
-        pts1 = np.array(ligand_coords[g1], dtype=np.float_)
-        pts2 = np.array(ligand_coords[g2], dtype=np.float_)
+        pts1 = np.array(ligand_coords[g1], dtype=np.float64)
+        pts2 = np.array(ligand_coords[g2], dtype=np.float64)
 
         rmsd, best_rot, pts2p = best_match(pts1, pts2)
 

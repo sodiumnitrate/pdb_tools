@@ -149,7 +149,7 @@ def is_position(vec):
         return True
 
     if isinstance(vec, list) or isinstance(vec, np.ndarray):
-        if all([isinstance(a, (int, float, np.int_, np.float_)) for a in vec]):
+        if all([isinstance(a, (int, float, np.int_, np.float64)) for a in vec]):
             if len(vec) == 3:
                 return True
 
@@ -164,14 +164,14 @@ def is_two_d_array_of_floats(array):
         if not all([isinstance(a, (list, np.ndarray)) for a in array]):
             return False
         for a in array:
-            if not all([isinstance(el, (float, np.float_)) for el in a]):
+            if not all([isinstance(el, (float, np.float64)) for el in a]):
                 return False
     elif isinstance(array, np.ndarray):
         shape = array.shape
         if len(shape) != 2:
             return False
             
-        if not isinstance(array[0][0], (np.float_)):
+        if not isinstance(array[0][0], (np.float64)):
             return False
     else:
         return False
