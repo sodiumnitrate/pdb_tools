@@ -11,6 +11,6 @@ setup(
         author = 'Irem Altan',
         author_email = 'irem.altan@yale.edu',
         packages = find_packages(),
-        install_requires = ['gemmi','pypdb','numpy','scikit-spatial'],
+        install_requires = ['gemmi','pypdb','numpy','scikit-spatial', 'scikit-learn'],
         python_requires = '>3.6',
         )
