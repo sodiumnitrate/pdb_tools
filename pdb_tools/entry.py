@@ -1,6 +1,7 @@
 """
 Definition of the entry class.
 
+
 (entry = PDB entry in PDB lingo)
 """
 import copy
@@ -12,7 +13,16 @@ from pdb_tools.metal_site import MetalSite
 import pdb
 
 class Entry:
-    def __init__(self, pdb_id):
+    """
+    Definition of the Entry class that holds and manipulates data given a PDB entry.
+    """
+    def __init__(self, pdb_id: str):
+        """
+        Initializes the entry object.
+
+        Input:
+        - pdb_id (string): the 4-character PDB id
+        """
         self.pdb_id = pdb_id
         
         self.structure = None
@@ -20,8 +30,13 @@ class Entry:
 
         self.metal_sites = []
 
-    def write_cif(self, file_name):
-        """Function to write the .cif file corresponding to the pdb ID to file."""
+    def write_cif(self, file_name: str):
+        """
+        Function to write the .cif file corresponding to the pdb ID to file.
+
+        Input:
+        - file_name (string): file name to write structure to .cif file
+        """
         self.structure.make_mmcif_document().write_file(file_name)
 
     def fetch_structure(self):
@@ -48,8 +63,18 @@ class Entry:
         how = gemmi.HowToNameCopiedChain.AddNumber
         self.structure.transform_to_assembly('unit_cell', how)
 
-    def select_atoms(self, selection, model_idx=0):
-        """Function to select a set of atoms, given the selection criteria."""
+    def select_atoms(self, selection: str, model_idx=0):
+        """
+        Function to select a set of atoms, given the selection criteria.
+
+        Input:
+        - selection (str): selection string using gemmi's language
+        - model_idx (int): index for model if entry has more than one model defaults to 0
+        """
+        if not isinstance(model_idx, int):
+            raise TypeError(f"model_idx has to be an integer but {type(model_idx)} was provided.")
+
+
         # TODO: make selection language the same as VMD and convert to gemmi's language?
         sel = gemmi.Selection(selection)
         ref_atoms = []
@@ -66,11 +91,21 @@ class Entry:
         """
         Function that, given a reference atom, find neighboring atoms in a
         maximum distance of max_dist.
+
+
+        Input:
+        - ref_atom (gemmi.CRA): atom to search the neighborhood of
+        - max_dist (float): (defaults to 3) maximum distance defining the neighborhood
+        - model_idx (int): (defaults to 3) index for model if entry has more than one model 
+        - tol (float): (defaults to 0.01) tolerance for distances
         """
+        if not isinstance(model_idx, int):
+            raise TypeError(f"model_idx has to be an integer but {type(model_idx)} was provided.")
+
         if isinstance(ref_atom, gemmi.CRA):
             ref_atom = ref_atom.atom
         elif not isinstance(ref_atom, gemmi.Atom):
-            raise TypeError
+            raise TypeError(f"ref_atom has to be a gemmi.CRA object but {type(gemmi.CRA)} was provided.")
         ns = gemmi.NeighborSearch(self.structure[model_idx],
                                   self.structure.cell,
                                   5).populate(include_h=False)
@@ -125,6 +160,11 @@ class Entry:
         """
         Given a reference atom, find neighboring atoms such that the closest
         atom from each neighboring residue is selected.
+
+        Input:
+        - ref_atom (gemmi.CRA): reference atom
+        - max_dist (float): (defaults to 3) maximum distance for neighborhood
+        - model_idx (int): (defaults to 0) model index to be considered
         """
         if isinstance(ref_atom, gemmi.CRA):
             ref_atom = ref_atom.atom
@@ -151,7 +191,14 @@ class Entry:
         return residues
 
     def find_contact_pairs(self, max_dist=4, inter_chain=False, model_idx=0):
-        """Function to find all atom pairs that are in contact."""
+        """
+        Function to find all atom pairs that are in contact.
+
+        Input:
+        - max_dist (float): (defaults to 4)
+        - inter_chain (bool): (defaults to False) whether or not contacts are to be searched on the same chain.
+        - model_idx (int): (defaults to 0) model index to be considered
+        """
         cs = gemmi.ContactSearch(max_dist)
         if inter_chain:
             cs.ignore = gemmi.ContactSearch.Ignore.SameChain
@@ -182,6 +229,10 @@ class Entry:
     def find_nearest_image_distance(self, pos1, pos2):
         """
         Given two positions, find the nearest image distance between them.
+
+        Inputs:
+        - pos1: position of atom 1
+        - pos2: position of atom 2
         """
         if not is_position(pos1) or not is_position(pos2):
             raise TypeError
@@ -193,6 +244,10 @@ class Entry:
         """
         Given two positions, return the displacement vector corresponding to the
         smallest distance between the two points under PBC and symmetry operations.
+
+        Input:
+        - pos1: position of atom 1
+        - pos2: position of atom 2
         """
         if not isinstance(pos1, gemmi.Position):
             pos1 = gemmi.Position(pos1[0], pos1[1], pos1[2])
@@ -202,6 +257,7 @@ class Entry:
         # TODO: is there a better way to do this??
         # TODO: you need an exception if the two atoms are the same
         i = 0
+        min_dist = 0
         while True:
             try:
                 dist = self.structure.cell.find_nearest_pbc_image(pos1, pos2, i)
@@ -229,6 +285,9 @@ class Entry:
 
         Uses the first atom in the list as a reference and brings all other atoms
         near it.
+
+        Input:
+        - atom_list (list[gemmi.CRA]): list of atoms to unfragment 
         """
         if not isinstance(atom_list, list):
             print(f"ERROR: an atom_list of {type(atom_list)} is not supported.")
@@ -261,6 +320,12 @@ class Entry:
         Find center of mass of a given atom list or selection of atoms.
 
         If atom_list is provided, selection_string and model_idx are rendered irrelevant.
+
+        Input:
+        - atom_list (list[gemmi.CRA]): list containing atoms
+        - selection_string (str): string that defines atom selection using gemmi's language
+        - unweighted (bool): (defaults to False) if True, treats weights of all atoms to be the same
+        - model_idx (int): (defaults to 0) model index for structure to be considered
         """
         if atom_list is None and selection_string is None:
             print("ERROR: atom_list and selection can't be both None.")
@@ -287,11 +352,15 @@ class Entry:
         com /= tot_w
         return com
 
-    def get_metal_sites(self, metal_element, model_idx=0):
+    def get_metal_sites(self, metal_element: str, model_idx=0):
         """
         Given the metal element, find and compile a list of metal sites.
 
         Skips H and C.
+
+        Inputs:
+        - metal_element (str): symbol for element to be considered
+        - model_idx (int): (defaults to 0) model index for structure to be considered
         """
         elements = self.get_elements()
         if metal_element not in elements:
@@ -324,6 +393,12 @@ class Entry:
         """
         Given a reference atom, find nearby aromatic rings
         that belong to Y, F, W, or H.
+
+        Input:
+        - ref_atom (gemmi.CRA): reference atom
+        - max_dist (float): (defaults to 7) maximum distance to consider for neighborhood
+        - model_idx (int): (defaults to 0): model index for structure to be considered
+        - tol (float): (defaults to 0.01) distance tolerance
         """
         atom_list = self.find_neighboring_atoms(ref_atom, max_dist=max_dist, model_idx=model_idx, tol=tol)
         aromatic_residues = []
@@ -342,8 +417,12 @@ class Entry:
         Given an aromatic residue, find its aromatic ring center(s) and
         the normal to the plane containing the ring(s).
 
-        Input: aromatic_residue = (str: resname, str: chain, int: seqid)
-        Output: two vectors
+        Input:
+        - aromatic_residue = (str: resname, str: chain, int: seqid)
+
+        Output:
+        - com: center of mass vector
+        - normal: normal vector
 
         TODO: add functionality to deal with a gemmi.Residue object.
         """
@@ -383,6 +462,13 @@ class Entry:
                                               model_idx=0, tol=0.01):
         """
         After finding metal sites, find aromatic residues around them.
+
+        Input:
+        - cutoff (float): maximum distance to consider
+        - max_d0 (float): maximum distance to consider between metal and aromatic ring
+        - max_theta (float): maximum angle (degrees) to consider between aromatic ring plane and metal
+        - model_idx (int): (defaults to 0) 
+        - tol (float): (defaults to 0.01)
         """
         if len(self.metal_sites) == 0:
             print("ERROR: couldn't find any metal sites. Did you run get_metal_sites() first?")

@@ -5,9 +5,7 @@ from math import sqrt
 import numpy as np
 from pdb_tools.entry import Entry
 from pdb_tools.utils import cra_from_atom
-import gemmi
 
-import pdb
 
 class TestEntry:
     def test_init(self):
